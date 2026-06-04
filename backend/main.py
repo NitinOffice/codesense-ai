@@ -1,13 +1,10 @@
-# CodeSense AI - Day 1
-# This is the starting point of our project
+from sklearn.feature_extraction.text import TfidfVectorizer
+import sys, os
+sys.path.append(os.path.dirname(os.path.abspath(__file__)) + "/..")
 
+from data.code_dataset import all_code, all_labels
 def analyze_code(code: str) -> dict:
-    """
-    Takes code as input and returns basic info about it.
-    Like a first glance before the AI does deep analysis.
-    """
     lines = code.split("\n")
-    
     result = {
         "total_lines": len(lines),
         "empty_lines": sum(1 for line in lines if line.strip() == ""),
@@ -15,21 +12,34 @@ def analyze_code(code: str) -> dict:
         "has_functions": "def " in code,
         "has_classes": "class " in code,
     }
-    
     return result
 
 
-# Test it
-sample_code = """
-# This is a sample function
-def add_numbers(a, b):
-    return a + b
+def code_to_numbers(code: str):
+    """Convert code to TF-IDF numbers so ML can read it"""
+    vectorizer = TfidfVectorizer(max_features=50)
+    vectorizer.fit(all_code)
+    numbers = vectorizer.transform([code])
+    return numbers, vectorizer
 
-result = add_numbers(5, 10)
-print(result)
+
+sample_code = """
+def greet_user(name):
+    # Say hello to the user
+    if not name:
+        return "Please provide a name"
+    message = f"Hello, {name}!"
+    return message
 """
 
-output = analyze_code(sample_code)
-print("Code Analysis:")
-for key, value in output.items():
-    print(f"  {key}: {value}")
+print("=== CodeSense AI - Day 2 ===")
+print("\n1. Basic Analysis:")
+analysis = analyze_code(sample_code)
+for key, val in analysis.items():
+    print(f"   {key}: {val}")
+
+
+print("\n2. Converting to numbers for ML...")
+numbers, vectorizer = code_to_numbers(sample_code)
+print(f"   Code converted to shape: {numbers.shape}")
+print(f"   Ready for ML model ✅")
