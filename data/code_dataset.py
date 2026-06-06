@@ -51,6 +51,48 @@ class BankAccount:
             self.balance += amount
             return True
         return False
+""",
+"""
+def send_email(recipient, subject, body):
+    # Validate all inputs before sending
+    if not recipient or not subject:
+        raise ValueError("Recipient and subject are required")
+    if "@" not in recipient:
+        raise ValueError("Invalid email address")
+    print(f"Sending email to {recipient}")
+    return True
+""",
+"""
+def count_words(text):
+    # Count number of words in a text string
+    if not text or not text.strip():
+        return 0
+    words = text.strip().split()
+    return len(words)
+""",
+"""
+def is_palindrome(word):
+    # Check if a word reads same forwards and backwards
+    if not word:
+        return False
+    cleaned = word.lower().strip()
+    return cleaned == cleaned[::-1]
+""",
+"""
+def get_even_numbers(numbers):
+    # Filter and return only even numbers from list
+    if not numbers:
+        return []
+    even_numbers = [num for num in numbers if num % 2 == 0]
+    return even_numbers
+""",
+"""
+def safe_divide(numerator, denominator):
+    # Safely divide two numbers with zero check
+    if denominator == 0:
+        raise ZeroDivisionError("Cannot divide by zero")
+    result = numerator / denominator
+    return result
 """
 ]
 
@@ -87,6 +129,36 @@ def process(d):
         if i>0:
             x.append(i*2)
     return x
+""",
+"""
+def fn(a,b,c,d,e):
+    return a*b+c-d/e
+""",
+"""
+x=input()
+y=input()
+print(int(x)+int(y))
+""",
+"""
+import os
+def d(p):
+    os.remove(p)
+    return 1
+""",
+"""
+def check(l):
+    r=[]
+    for i in range(len(l)):
+        if l[i]%2==0:
+            r.append(l[i])
+    return r
+""",
+"""
+global_data = []
+def add(x):
+    global global_data
+    global_data.append(x)
+    return global_data
 """
 ]
 
