@@ -52,10 +52,10 @@ def predict_code_quality(code: str) -> dict:
     confidence = probabilities[predicted_index]
 
     return {
-        "prediction": prediction,
-        "confidence": round(confidence * 100, 1),
+        "prediction": str(prediction),
+        "confidence": round(float(confidence) * 100, 1),
         "all_probabilities": {
-            classes[i]: round(probabilities[i] * 100, 1)
+            str(classes[i]): round(float(probabilities[i]) * 100, 1)
             for i in range(len(classes))
         }
     }
