@@ -1,56 +1,66 @@
-# frontend/app.py
 import streamlit as st
 import sys
 import os
+import plotly.graph_objects as go
+from datetime import datetime
 
-# Tell Python where to find backend
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from backend.main import full_analysis
 
-# ── Page configuration ────────────────────────────────────
+# ── Page config ───────────────────────────────────────────
 st.set_page_config(
     page_title="CodeSense AI",
     page_icon="🤖",
-    layout="wide"
+    layout="wide",
+    initial_sidebar_state="expanded"
 )
 
-# ── Header ────────────────────────────────────────────────
-st.title("🤖 CodeSense AI")
-st.markdown("**AI-powered code review tool** — paste your code and get instant feedback")
-st.divider()
+# ── Custom CSS ────────────────────────────────────────────
+st.markdown("""
+<style>
+    .main-header {
+        font-size: 2.5rem;
+        font-weight: bold;
+        background: linear-gradient(90deg, #667eea, #764ba2);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
+    .score-card {
+        padding: 1rem;
+        border-radius: 10px;
+        text-align: center;
+        margin: 0.5rem 0;
+    }
+    .metric-card {
+        background: #f0f2f6;
+        padding: 1rem;
+        border-radius: 8px;
+        text-align: center;
+    }
+</style>
+""", unsafe_allow_html=True)
 
-# ── Layout: two columns ───────────────────────────────────
-col1, col2 = st.columns(2)
+# ── Session state initialization ──────────────────────────
+if "history" not in st.session_state:
+    st.session_state.history = []
 
-with col1:
-    st.subheader("📝 Paste Your Code")
-    
-    code_input = st.text_area(
-        label="Code input",
-        placeholder="Paste your Python code here...",
-        height=300,
-        label_visibility="collapsed"
-    )
+if "analysis_count" not in st.session_state:
+    st.session_state.analysis_count = 0
 
-analyze_button = st.button(
-        "🔍 Analyze Code",
-        type="primary",
-        use_container_width=True
-    )
+# ── Sidebar ───────────────────────────────────────────────
+with st.sidebar:
+    st.markdown("## ⚙️ CodeSense AI")
+    st.divider()
 
-# Example buttons
-st.markdown("**Try an example:**")
-ex_col1, ex_col2 = st.columns(2)
-    
-with ex_col1:
-        good_example = st.button("✅ Good Code Example", use_container_width=True)
-with ex_col2:
-        bad_example = st.button("❌ Bad Code Example", use_container_width=True)
+    st.markdown("### 📊 Session Stats")
+    st.metric("Analyses Run", st.session_state.analysis_count)
+    st.metric("Saved in History", len(st.session_state.history))
 
-# Load examples when buttons clicked
-if good_example:
-        st.session_state.example_code = """
-def calculate_total_price(items, tax_rate):
+    st.divider()
+    st.markdown("### 🎯 Quick Examples")
+
+    if st.button("✅ Load Good Code", use_container_width=True):
+        st.session_state.example_code = """def calculate_total_price(items, tax_rate):
     # Calculate total price including tax
     if not items:
         raise ValueError("Items list cannot be empty")
@@ -59,93 +69,233 @@ def calculate_total_price(items, tax_rate):
     subtotal = sum(item['price'] for item in items)
     tax_amount = subtotal * tax_rate
     total = subtotal + tax_amount
-    return round(total, 2)
-"""
-if bad_example:
-        st.session_state.example_code = """
-def f(x,y,z):
+    return round(total, 2)"""
+
+    if st.button("❌ Load Bad Code", use_container_width=True):
+        st.session_state.example_code = """def f(x,y,z):
     a=x+y
     b=a*z
-    return b
-"""
+    return b"""
 
-with col2:
-    st.subheader("📊 Analysis Results")
-    
-    # Get code to analyze
-    code_to_analyze = ""
-    if hasattr(st.session_state, 'example_code'):
-        code_to_analyze = st.session_state.example_code
-    if code_input:
-        code_to_analyze = code_input
+    if st.button("🟡 Load Medium Code", use_container_width=True):
+        st.session_state.example_code = """def add_numbers(a, b):
+    result = a + b
+    return result"""
 
-if analyze_button and code_to_analyze:
-        with st.spinner("🔍 Analyzing your code..."):
-            result = full_analysis(code_to_analyze)
+    st.divider()
+    if st.button("🗑️ Clear History", use_container_width=True):
+        st.session_state.history = []
+        st.session_state.analysis_count = 0
+        st.success("History cleared!")
 
-# Quality Score — big and prominent
-        score = result['quality_score']
-        if score >= 70:
-            score_color = "🟢"
-            score_label = "Good"
-        elif score >= 40:
-            score_color = "🟡"
-            score_label = "Needs Work"
-        else:
-            score_color = "🔴"
-            score_label = "Poor"
+# ── Main header ───────────────────────────────────────────
+st.markdown('<p class="main-header">🤖 CodeSense AI</p>', unsafe_allow_html=True)
+st.markdown("AI-powered code review — get instant feedback on your code quality")
+st.divider()
 
-        st.metric(
-            label="Quality Score",
-            value=f"{score}/100",
-            delta=score_label
+# ── Tabs ──────────────────────────────────────────────────
+tab1, tab2, tab3 = st.tabs(["🔍 Analyze", "📜 History", "ℹ️ About"])
+
+# ════════════════════════════════════════════════════════
+# TAB 1 — ANALYZE
+# ════════════════════════════════════════════════════════
+with tab1:
+    col1, col2 = st.columns([1, 1])
+
+    with col1:
+        st.subheader("📝 Your Code")
+
+        default_code = ""
+        if hasattr(st.session_state, 'example_code'):
+            default_code = st.session_state.example_code
+
+        code_input = st.text_area(
+            label="paste code",
+            value=default_code,
+            placeholder="Paste your Python, JavaScript, or any code here...",
+            height=320,
+            label_visibility="collapsed"
         )
 
-# Prediction confidence
-        pred = result['prediction']
-        conf = result['confidence']
-        if pred == "good":
-            st.success(f"✅ Prediction: **GOOD CODE** ({conf}% confident)")
+        col_btn1, col_btn2 = st.columns([2, 1])
+        with col_btn1:
+            analyze_btn = st.button(
+                "🔍 Analyze My Code",
+                type="primary",
+                use_container_width=True
+            )
+        with col_btn2:
+            clear_btn = st.button(
+                "🗑️ Clear",
+                use_container_width=True
+            )
+
+        if clear_btn:
+            if hasattr(st.session_state, 'example_code'):
+                del st.session_state.example_code
+            st.rerun()
+
+    with col2:
+        st.subheader("📊 Results")
+
+        if analyze_btn and code_input.strip():
+            with st.spinner("🤖 Analyzing your code..."):
+                result = full_analysis(code_input)
+
+            # Save to history
+            st.session_state.history.append({
+                "code": code_input,
+                "result": result,
+                "timestamp": datetime.now().strftime("%H:%M:%S"),
+                "date": datetime.now().strftime("%Y-%m-%d")
+            })
+            st.session_state.analysis_count += 1
+
+            # ── Score gauge chart ──────────────────────────
+            score = result['quality_score']
+
+            fig = go.Figure(go.Indicator(
+                mode="gauge+number",
+                value=score,
+                domain={'x': [0, 1], 'y': [0, 1]},
+                title={'text': "Quality Score"},
+                gauge={
+                    'axis': {'range': [0, 100]},
+                    'bar': {'color': "#667eea"},
+                    'steps': [
+                        {'range': [0, 40], 'color': "#ff4b4b"},
+                        {'range': [40, 70], 'color': "#ffa500"},
+                        {'range': [70, 100], 'color': "#00cc44"}
+                    ],
+                    'threshold': {
+                        'line': {'color': "black", 'width': 4},
+                        'thickness': 0.75,
+                        'value': score
+                    }
+                }
+            ))
+            fig.update_layout(height=250, margin=dict(t=40, b=0, l=20, r=20))
+            st.plotly_chart(fig, use_container_width=True)
+
+            # ── Prediction badge ───────────────────────────
+            pred = result['prediction']
+            conf = result['confidence']
+
+            if pred == "good":
+                st.success(f"✅ **GOOD CODE** — {conf}% confident")
+            else:
+                st.error(f"❌ **NEEDS IMPROVEMENT** — {conf}% confident")
+
+            # ── Stats row ──────────────────────────────────
+            s1, s2, s3, s4 = st.columns(4)
+            s1.metric("Lines", result['total_lines'])
+            s2.metric("Comments", result['comment_lines'])
+            s3.metric("Issues", result['issues_count'])
+            s4.metric("Score", f"{score}/100")
+
+            # ── Issues ─────────────────────────────────────
+            if result['issues_found']:
+                st.markdown("**⚠️ Issues:**")
+                for issue in result['issues_found']:
+                    st.warning(f"⚠️ {issue}")
+
+            # ── Suggestions ────────────────────────────────
+            if result['suggestions']:
+                st.markdown("**💡 Suggestions:**")
+                for suggestion in result['suggestions']:
+                    st.info(f"💡 {suggestion}")
+
+            # ── Code preview with syntax highlighting ──────
+            with st.expander("👁️ View Analyzed Code"):
+                st.code(code_input, language="python")
+
+        elif analyze_btn and not code_input.strip():
+            st.warning("⚠️ Please paste some code first!")
+
         else:
-            st.error(f"❌ Prediction: **BAD CODE** ({conf}% confident)")
+            st.markdown("""
+            ### 👈 How to use:
+            1. Paste your code in the left panel
+            2. Click **Analyze My Code**
+            3. Get instant AI feedback!
 
-# Basic stats
-        st.markdown("**📈 Code Statistics:**")
-        stat_col1, stat_col2, stat_col3 = st.columns(3)
-        with stat_col1:
-            st.metric("Total Lines", result['total_lines'])
-        with stat_col2:
-            st.metric("Comment Lines", result['comment_lines'])
-        with stat_col3:
-            st.metric("Issues Found", result['issues_count'])
+            Or load an example from the **sidebar** →
+            """)
 
-# Issues found
-        if result['issues_found']:
-            st.markdown("**⚠️ Issues Found:**")
-            for issue in result['issues_found']:
-                st.warning(f"⚠️ {issue}")
-        else:
-            st.success("✅ No major issues found!")
+# ════════════════════════════════════════════════════════
+# TAB 2 — HISTORY
+# ════════════════════════════════════════════════════════
+with tab2:
+    st.subheader("📜 Analysis History")
 
-# Suggestions
-        if result['suggestions']:
-            st.markdown("**💡 How to Fix:**")
-            for suggestion in result['suggestions']:
-                st.info(f"💡 {suggestion}")
+    if not st.session_state.history:
+        st.info("No analyses yet. Go to the Analyze tab and review some code!")
+    else:
+        for i, item in enumerate(reversed(st.session_state.history)):
+            score = item['result']['quality_score']
+            pred = item['result']['prediction']
 
+            if score >= 70:
+                icon = "🟢"
+            elif score >= 40:
+                icon = "🟡"
+            else:
+                icon = "🔴"
 
-# Probability breakdown
-        st.markdown("**🎯 Model Confidence:**")
-        probs = result['all_probabilities']
-        st.progress(probs.get('good', 0) / 100)
-        st.caption(f"Good: {probs.get('good', 0)}%  |  Bad: {probs.get('bad', 0)}%")
+            with st.expander(
+                f"{icon} Analysis #{len(st.session_state.history) - i} "
+                f"— Score: {score}/100 — {item['timestamp']}"
+            ):
+                h_col1, h_col2 = st.columns(2)
 
-elif analyze_button and not code_to_analyze:
-        st.warning("⚠️ Please paste some code first!")
-    
-else:
-        st.info("👈 Paste your code on the left and click **Analyze Code**")
+                with h_col1:
+                    st.markdown(f"**Prediction:** {pred.upper()}")
+                    st.markdown(f"**Confidence:** {item['result']['confidence']}%")
+                    st.markdown(f"**Issues found:** {item['result']['issues_count']}")
 
-# ── Footer ────────────────────────────────────────────────
-st.divider()
-st.caption("CodeSense AI — Built with sklearn, Random Forest, and Streamlit")
+                    if item['result']['issues_found']:
+                        for issue in item['result']['issues_found']:
+                            st.warning(f"⚠️ {issue}")
+
+                with h_col2:
+                    st.markdown("**Code analyzed:**")
+                    st.code(
+                        item['code'][:300] + "..." if len(item['code']) > 300 else item['code'],
+                        language="python"
+                    )
+
+# ════════════════════════════════════════════════════════
+# TAB 3 — ABOUT
+# ════════════════════════════════════════════════════════
+with tab3:
+    st.subheader("ℹ️ About CodeSense AI")
+
+    st.markdown("""
+    ## What is CodeSense AI?
+
+    CodeSense AI is an intelligent code review tool that uses
+    **Machine Learning** to analyze your code quality instantly.
+
+    ## 🔧 How it works
+
+    1. **TF-IDF Vectorizer** converts your code into numbers
+    2. **Random Forest** (100 decision trees) predicts quality
+    3. **Rule-based checks** detect specific issues
+    4. **Suggestions engine** tells you exactly how to fix problems
+
+    ## 🛠️ Tech Stack
+
+    | Component | Technology |
+    |---|---|
+    | ML Model | Random Forest (sklearn) |
+    | Vectorizer | TF-IDF |
+    | UI | Streamlit |
+    | Charts | Plotly |
+    | Language | Python |
+
+    ## 📈 Coming Soon
+    - CodeBERT transformer model (Week 2)
+    - RAG-powered detailed reviews (Week 3)
+    - React frontend (Week 4)
+    - Live deployment (Week 4)
+    """)
