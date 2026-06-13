@@ -25,6 +25,9 @@ Paste any code → get instant AI feedback:
 ## 🖥️ Screenshots
 
 > Add screenshots here after running the app
+![alt text](image.png)
+
+![alt text](image-1.png)
 
 ---
 

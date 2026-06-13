@@ -194,6 +194,11 @@ with tab1:
             s4.metric("Score", f"{score}/100")
 
             # ── Issues ─────────────────────────────────────
+            # ── Syntax error — show prominently ───────────────────────
+            if result.get('has_syntax_error'):
+                 st.error(f"🚨 **SYNTAX ERROR DETECTED**")
+                 st.code(result['syntax_error_detail'], language="text")
+                 
             if result['issues_found']:
                 st.markdown("**⚠️ Issues:**")
                 for issue in result['issues_found']:

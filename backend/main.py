@@ -5,6 +5,7 @@ import joblib
 import numpy as np
 import os
 import re
+import ast
 
 # ── Load saved models ─────────────────────────────────────
 models_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "models")
@@ -37,18 +38,29 @@ def analyze_code(code: str) -> dict:
     lines = code.split("\n")
     issues = []
 
-    if not any(line.strip().startswith("#") for line in lines):
-        issues.append("No comments found")
+    # ── NEW: Syntax error detection ───────────────────────
+    syntax_error = None
+    try:
+        ast.parse(code)
+    except SyntaxError as e:
+        syntax_error = f"Syntax error on line {e.lineno}: {e.msg}"
+        issues.append(syntax_error)
 
-    if "try" not in code and "except" not in code:
-        issues.append("No error handling (try/except)")
+    # Only check style issues if no syntax errors
+    if not syntax_error:
+        if not any(line.strip().startswith("#") for line in lines):
+            issues.append("No comments found")
 
-    single_letters = re.findall(r'\b[a-z]\b', code)
-    if len(single_letters) > 2:
-        issues.append(f"Too many single-letter variables: {set(single_letters)}")
+        if "try" not in code and "except" not in code:
+            issues.append("No error handling (try/except)")
 
-    if len([l for l in lines if len(l) > 79]) > 0:
-        issues.append("Some lines exceed 79 characters (PEP8 standard)")
+        import re
+        single_letters = re.findall(r'\b[a-z]\b', code)
+        if len(single_letters) > 2:
+            issues.append(f"Too many single-letter variables: {set(single_letters)}")
+
+        if len([l for l in lines if len(l) > 79]) > 0:
+            issues.append("Some lines exceed 79 characters (PEP8 standard)")
 
     return {
         "total_lines": len(lines),
@@ -57,6 +69,8 @@ def analyze_code(code: str) -> dict:
         "has_functions": "def " in code,
         "has_classes": "class " in code,
         "has_error_handling": "try" in code and "except" in code,
+        "has_syntax_error": syntax_error is not None,
+        "syntax_error_detail": syntax_error,
         "issues_found": issues,
         "issues_count": len(issues)
     }
