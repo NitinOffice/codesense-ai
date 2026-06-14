@@ -111,3 +111,4 @@ Open `http://localhost:8501` in your browser.
 to master AI/ML engineering from scratch.
 
 > Day 7 of 30 — Week 1 Complete ✅
+
